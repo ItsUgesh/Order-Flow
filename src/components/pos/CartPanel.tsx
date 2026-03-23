@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MenuItem } from './MenuGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfile } from '@/lib/auth-store';
 import PrintableReceipt from './PrintableReceipt';
-import { format } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -41,11 +41,13 @@ export default function CartPanel({
   const [heldOrders, setHeldOrders] = useState<any[]>([]);
   const [chargingOrder, setChargingOrder] = useState<any | null>(null);
   const [lastProcessedOrder, setLastProcessedOrder] = useState<any | null>(null);
+  const [existingTableOrder, setExistingTableOrder] = useState<any | null>(null);
   const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal;
 
+  // Listen to all held orders to facilitate the "Held" tab
   useEffect(() => {
     const q = query(collection(db, 'orders'), where('status', '==', 'on_hold'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -53,6 +55,16 @@ export default function CartPanel({
     });
     return () => unsubscribe();
   }, []);
+
+  // Check for existing on_hold orders for the selected table
+  useEffect(() => {
+    if (isDineIn && selectedTable) {
+      const order = heldOrders.find(o => o.tableNumber === selectedTable && o.status === 'on_hold');
+      setExistingTableOrder(order || null);
+    } else {
+      setExistingTableOrder(null);
+    }
+  }, [selectedTable, isDineIn, heldOrders]);
 
   const handleCharge = (order: any = null) => {
     if (order) {
@@ -78,7 +90,7 @@ export default function CartPanel({
       let finalOrderData;
 
       if (chargingOrder) {
-        // Completing a HELD order
+        // CASE: Charging an existing HELD order from the "Held" tab
         finalOrderData = {
           ...chargingOrder,
           status,
@@ -90,8 +102,47 @@ export default function CartPanel({
           paymentMethod: method,
           paidAt: status === 'paid' ? serverTimestamp() : null
         });
+      } else if (existingTableOrder) {
+        // CASE: Merging NEW items into an EXISTING on_hold order for a table
+        const mergedItems = [...existingTableOrder.items];
+        cart.forEach(cartItem => {
+          const index = mergedItems.findIndex(i => i.menuItemId === cartItem.id);
+          if (index > -1) {
+            mergedItems[index].quantity += cartItem.quantity;
+          } else {
+            mergedItems.push({
+              menuItemId: cartItem.id,
+              name: cartItem.name,
+              quantity: cartItem.quantity,
+              price: cartItem.price
+            });
+          }
+        });
+
+        const newTotal = mergedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+
+        finalOrderData = {
+          ...existingTableOrder,
+          items: mergedItems,
+          total: newTotal,
+          subtotal: newTotal,
+          status,
+          paymentMethod: method,
+          paidAt: status === 'paid' ? serverTimestamp() : existingTableOrder.paidAt || null,
+          updatedAt: serverTimestamp()
+        };
+
+        await updateDoc(doc(db, 'orders', existingTableOrder.id), {
+          items: mergedItems,
+          total: newTotal,
+          subtotal: newTotal,
+          status,
+          paymentMethod: method,
+          paidAt: status === 'paid' ? serverTimestamp() : null,
+          updatedAt: serverTimestamp()
+        });
       } else {
-        // Creating a NEW order
+        // CASE: Creating a completely NEW order
         finalOrderData = {
           orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
           type: isDineIn ? 'dine_in' : 'takeaway',
@@ -118,14 +169,19 @@ export default function CartPanel({
       
       toast({ 
         title: status === 'paid' ? "Order Completed" : "Order Held", 
-        description: `Order ${finalOrderData.orderNumber} ${status === 'paid' ? 'paid via ' + method : 'saved as hold'}` 
+        description: `Order ${finalOrderData.orderNumber} ${status === 'paid' ? 'paid via ' + (method || 'method') : 'saved as hold'}` 
       });
 
-      if (!chargingOrder) onClearCart();
+      // Clear state after success
+      if (!chargingOrder) {
+        onClearCart();
+        setSelectedTable(null);
+        setExistingTableOrder(null);
+      }
       setIsPaymentModalOpen(false);
       setChargingOrder(null);
-      setSelectedTable(null);
     } catch (err) {
+      console.error(err);
       toast({ title: "Error", description: "Failed to process order", variant: "destructive" });
     }
   };
@@ -152,6 +208,18 @@ export default function CartPanel({
               <Trash2 className="w-5 h-5" />
             </Button>
           </div>
+
+          {existingTableOrder && (
+            <div className="px-6 py-3 bg-amber-50 border-b border-amber-100">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">Table {selectedTable} has an active order</p>
+                  <p className="text-xs text-amber-700">New items will be merged into {existingTableOrder.orderNumber}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="p-6 border-b space-y-4">
             <div className="flex items-center justify-between">
@@ -247,14 +315,14 @@ export default function CartPanel({
                 variant="outline" 
                 className="h-14 rounded-xl border-slate-300 font-bold"
                 onClick={() => handleCompleteOrder(null, 'on_hold')}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || (isDineIn && !selectedTable)}
               >
                 Hold Order
               </Button>
               <Button 
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20 transition-all"
                 onClick={() => handleCharge()}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || (isDineIn && !selectedTable)}
               >
                 Charge Order
               </Button>
