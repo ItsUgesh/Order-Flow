@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { MenuItem } from './MenuGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,12 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfile } from '@/lib/auth-store';
 import PrintableReceipt from './PrintableReceipt';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -47,7 +46,6 @@ export default function CartPanel({
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal;
 
-  // Listen to all held orders to facilitate the "Held" tab
   useEffect(() => {
     const q = query(collection(db, 'orders'), where('status', '==', 'on_hold'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -56,7 +54,6 @@ export default function CartPanel({
     return () => unsubscribe();
   }, []);
 
-  // Check for existing on_hold orders for the selected table
   useEffect(() => {
     if (isDineIn && selectedTable) {
       const order = heldOrders.find(o => o.tableNumber === selectedTable && o.status === 'on_hold');
@@ -90,7 +87,6 @@ export default function CartPanel({
       let finalOrderData;
 
       if (chargingOrder) {
-        // CASE: Charging an existing HELD order from the "Held" tab
         finalOrderData = {
           ...chargingOrder,
           status,
@@ -103,7 +99,6 @@ export default function CartPanel({
           paidAt: status === 'paid' ? serverTimestamp() : null
         });
       } else if (existingTableOrder) {
-        // CASE: Merging NEW items into an EXISTING on_hold order for a table
         const mergedItems = [...existingTableOrder.items];
         cart.forEach(cartItem => {
           const index = mergedItems.findIndex(i => i.menuItemId === cartItem.id);
@@ -128,7 +123,7 @@ export default function CartPanel({
           subtotal: newTotal,
           status,
           paymentMethod: method,
-          paidAt: status === 'paid' ? serverTimestamp() : existingTableOrder.paidAt || null,
+          paidAt: status === 'paid' ? serverTimestamp() : null,
           updatedAt: serverTimestamp()
         };
 
@@ -142,7 +137,6 @@ export default function CartPanel({
           updatedAt: serverTimestamp()
         });
       } else {
-        // CASE: Creating a completely NEW order
         finalOrderData = {
           orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
           type: isDineIn ? 'dine_in' : 'takeaway',
@@ -172,7 +166,6 @@ export default function CartPanel({
         description: `Order ${finalOrderData.orderNumber} ${status === 'paid' ? 'paid via ' + (method || 'method') : 'saved as hold'}` 
       });
 
-      // Clear state after success
       if (!chargingOrder) {
         onClearCart();
         setSelectedTable(null);
@@ -187,11 +180,11 @@ export default function CartPanel({
   };
 
   return (
-    <aside className="bg-white border-l flex flex-col h-full shadow-xl relative z-10">
+    <aside className="bg-white border-l flex flex-col h-full shadow-xl relative z-10 overflow-hidden">
       <PrintableReceipt order={lastProcessedOrder} />
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-6 pt-6 border-b bg-slate-50">
+        <div className="px-6 pt-6 border-b bg-slate-50 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="current" className="font-bold">Active Cart</TabsTrigger>
             <TabsTrigger value="held" className="font-bold">Held ({heldOrders.length})</TabsTrigger>
@@ -199,62 +192,66 @@ export default function CartPanel({
         </div>
 
         <TabsContent value="current" className="flex-1 flex flex-col overflow-hidden m-0">
-          <div className="p-6 border-b flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-orange-500" />
-              Current Order
-            </h2>
-            <Button variant="ghost" size="icon" onClick={onClearCart} className="text-slate-400 hover:text-red-500">
-              <Trash2 className="w-5 h-5" />
-            </Button>
-          </div>
-
-          {existingTableOrder && (
-            <div className="px-6 py-3 bg-amber-50 border-b border-amber-100">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-amber-900">Table {selectedTable} has an active order</p>
-                  <p className="text-xs text-amber-700">New items will be merged into {existingTableOrder.orderNumber}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="p-6 border-b space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="font-semibold text-slate-700">Order Type</Label>
-              <div className="flex items-center gap-2">
-                <span className={!isDineIn ? "text-orange-600 font-bold text-xs" : "text-slate-400 text-xs"}>Takeaway</span>
-                <Switch checked={isDineIn} onCheckedChange={setIsDineIn} />
-                <span className={isDineIn ? "text-orange-600 font-bold text-xs" : "text-slate-400 text-xs"}>Dine-In</span>
-              </div>
+          {/* Top Section: Fixed */}
+          <div className="flex-shrink-0">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-orange-500" />
+                Current Order
+              </h2>
+              <Button variant="ghost" size="icon" onClick={onClearCart} className="text-slate-400 hover:text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </Button>
             </div>
 
-            {isDineIn && (
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-500 uppercase tracking-wider font-bold">Select Table</Label>
-                <div className="grid grid-cols-5 gap-2">
-                  {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
-                    <button
-                      key={num}
-                      onClick={() => setSelectedTable(num)}
-                      className={`h-10 text-xs font-bold rounded-lg border transition-all ${
-                        selectedTable === num 
-                        ? 'bg-orange-500 border-orange-500 text-white shadow-md' 
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
-                      }`}
-                    >
-                      T{num}
-                    </button>
-                  ))}
+            {existingTableOrder && (
+              <div className="px-6 py-3 bg-amber-50 border-b border-amber-100">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Table {selectedTable} has an active order</p>
+                    <p className="text-xs text-amber-700">New items will be merged into {existingTableOrder.orderNumber}</p>
+                  </div>
                 </div>
               </div>
             )}
+
+            <div className="p-6 border-b space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold text-slate-700">Order Type</Label>
+                <div className="flex items-center gap-2">
+                  <span className={!isDineIn ? "text-orange-600 font-bold text-xs" : "text-slate-400 text-xs"}>Takeaway</span>
+                  <Switch checked={isDineIn} onCheckedChange={setIsDineIn} />
+                  <span className={isDineIn ? "text-orange-600 font-bold text-xs" : "text-slate-400 text-xs"}>Dine-In</span>
+                </div>
+              </div>
+
+              {isDineIn && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-500 uppercase tracking-wider font-bold">Select Table</Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                      <button
+                        key={num}
+                        onClick={() => setSelectedTable(num)}
+                        className={`h-10 text-xs font-bold rounded-lg border transition-all ${
+                          selectedTable === num 
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-md' 
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                        }`}
+                      >
+                        T{num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          <ScrollArea className="flex-1 p-6">
-            <div className="space-y-4">
+          {/* Middle Section: Scrollable Items */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-6 space-y-4">
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                   <ShoppingCart className="w-12 h-12 mb-4 opacity-20" />
@@ -262,26 +259,26 @@ export default function CartPanel({
                 </div>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className="flex flex-col gap-2">
+                  <div key={item.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="flex justify-between items-start">
                       <span className="font-bold text-slate-800 flex-1">{item.name}</span>
                       <span className="font-bold text-slate-900 ml-4">Rs {(item.price * item.quantity).toFixed(2)}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2 bg-white rounded-lg p-1 border">
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-slate-600 hover:bg-white"
+                          className="h-8 w-8 text-slate-600 hover:bg-slate-50"
                           onClick={() => onUpdateQuantity(item.id, -1)}
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="w-8 text-center font-bold">{item.quantity}</span>
+                        <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-slate-600 hover:bg-white"
+                          className="h-8 w-8 text-slate-600 hover:bg-slate-50"
                           onClick={() => onUpdateQuantity(item.id, 1)}
                         >
                           <Plus className="w-3 h-3" />
@@ -295,11 +292,12 @@ export default function CartPanel({
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
 
-          <div className="p-6 bg-slate-50 border-t space-y-4">
+          {/* Bottom Section: Fixed Totals and Actions */}
+          <div className="flex-shrink-0 p-6 bg-slate-50 border-t space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-slate-500">
+              <div className="flex justify-between text-slate-500 text-sm">
                 <span>Subtotal</span>
                 <span>Rs {subtotal.toFixed(2)}</span>
               </div>
@@ -331,7 +329,7 @@ export default function CartPanel({
         </TabsContent>
 
         <TabsContent value="held" className="flex-1 flex flex-col overflow-hidden m-0">
-          <div className="p-6 border-b flex items-center justify-between">
+          <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Timer className="w-5 h-5 text-amber-500" />
               Held Orders
