@@ -180,10 +180,12 @@ export default function CartPanel({
   };
 
   return (
-    <aside className="bg-white border-l flex flex-col h-full shadow-xl relative z-10 overflow-hidden">
-      <PrintableReceipt order={lastProcessedOrder} />
+    <aside className="bg-white border-l flex flex-col h-full shadow-xl relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none z-[100]">
+        <PrintableReceipt order={lastProcessedOrder} />
+      </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden relative z-10">
         <div className="px-6 pt-6 border-b bg-slate-50 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="current" className="font-bold">Active Cart</TabsTrigger>
@@ -191,9 +193,9 @@ export default function CartPanel({
           </TabsList>
         </div>
 
-        <TabsContent value="current" className="flex-1 flex flex-col overflow-hidden m-0">
-          {/* Top Section: Fixed */}
-          <div className="flex-shrink-0">
+        <TabsContent value="current" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=inactive]:hidden">
+          {/* Top Section: Fixed Header and Controls */}
+          <div className="flex-shrink-0 z-20 bg-white">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-orange-500" />
@@ -208,9 +210,9 @@ export default function CartPanel({
               <div className="px-6 py-3 bg-amber-50 border-b border-amber-100">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-bold text-amber-900">Table {selectedTable} has an active order</p>
-                    <p className="text-xs text-amber-700">New items will be merged into {existingTableOrder.orderNumber}</p>
+                    <p className="text-xs text-amber-700">Items will merge into {existingTableOrder.orderNumber}</p>
                   </div>
                 </div>
               </div>
@@ -229,28 +231,30 @@ export default function CartPanel({
               {isDineIn && (
                 <div className="space-y-2">
                   <Label className="text-xs text-slate-500 uppercase tracking-wider font-bold">Select Table</Label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
-                      <button
-                        key={num}
-                        onClick={() => setSelectedTable(num)}
-                        className={`h-10 text-xs font-bold rounded-lg border transition-all ${
-                          selectedTable === num 
-                          ? 'bg-orange-500 border-orange-500 text-white shadow-md' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
-                        }`}
-                      >
-                        T{num}
-                      </button>
-                    ))}
+                  <div className="max-h-[120px] overflow-y-auto p-1 border rounded-xl bg-slate-50">
+                    <div className="grid grid-cols-5 gap-2">
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setSelectedTable(num)}
+                          className={`h-9 text-xs font-bold rounded-lg border transition-all ${
+                            selectedTable === num 
+                            ? 'bg-orange-500 border-orange-500 text-white shadow-md' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                          }`}
+                        >
+                          T{num}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Middle Section: Scrollable Items */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Middle Section: Scrollable Cart Items */}
+          <div className="flex-1 overflow-y-auto min-h-0 relative z-10 bg-white">
             <div className="p-6 space-y-4">
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -295,7 +299,7 @@ export default function CartPanel({
           </div>
 
           {/* Bottom Section: Fixed Totals and Actions */}
-          <div className="flex-shrink-0 p-6 bg-slate-50 border-t space-y-4">
+          <div className="flex-shrink-0 p-6 bg-slate-50 border-t space-y-4 z-20">
             <div className="space-y-2">
               <div className="flex justify-between text-slate-500 text-sm">
                 <span>Subtotal</span>
@@ -328,14 +332,14 @@ export default function CartPanel({
           </div>
         </TabsContent>
 
-        <TabsContent value="held" className="flex-1 flex flex-col overflow-hidden m-0">
-          <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
+        <TabsContent value="held" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=inactive]:hidden">
+          <div className="p-6 border-b flex items-center justify-between flex-shrink-0 bg-white">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Timer className="w-5 h-5 text-amber-500" />
               Held Orders
             </h2>
           </div>
-          <ScrollArea className="flex-1 p-6">
+          <ScrollArea className="flex-1 p-6 bg-white">
             <div className="space-y-4">
               {heldOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
