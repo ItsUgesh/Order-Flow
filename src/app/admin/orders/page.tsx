@@ -13,11 +13,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import PrintableReceipt from '@/components/pos/PrintableReceipt';
 
 export default function OrderHistoryPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [printOrder, setPrintOrder] = useState<any | null>(null);
 
   useEffect(() => {
     let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
@@ -32,8 +36,17 @@ export default function OrderHistoryPage() {
     return () => unsubscribe();
   }, [statusFilter]);
 
+  const handlePrint = (order: any) => {
+    setPrintOrder(order);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   return (
     <div className="space-y-8">
+      <PrintableReceipt order={printOrder} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Order History</h1>
@@ -65,12 +78,13 @@ export default function OrderHistoryPage() {
               <TableHead>Payment</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-20 text-slate-400">No orders found matching criteria.</TableCell>
+                <TableCell colSpan={8} className="text-center py-20 text-slate-400">No orders found matching criteria.</TableCell>
               </TableRow>
             ) : (
               orders.map((order) => (
@@ -96,11 +110,23 @@ export default function OrderHistoryPage() {
                       </Badge>
                     ) : '-'}
                   </TableCell>
-                  <TableCell className="font-black text-slate-900">NPR {order.total.toFixed(2)}</TableCell>
+                  <TableCell className="font-black text-slate-900">Rs {order.total.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge className={order.status === 'paid' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none' : 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none'}>
                       {order.status === 'paid' ? 'Paid' : 'On Hold'}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {order.status === 'paid' && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handlePrint(order)}
+                        className="text-slate-400 hover:text-orange-600"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

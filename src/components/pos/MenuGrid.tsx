@@ -81,7 +81,7 @@ export default function MenuGrid({ onAddItem }: { onAddItem: (item: MenuItem) =>
                 <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-medium">
                   {item.category}
                 </Badge>
-                <span className="font-bold text-orange-600">NPR {(item.price).toFixed(2)}</span>
+                <span className="font-bold text-orange-600">Rs {(item.price).toFixed(2)}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex-1 line-clamp-2">{item.name}</h3>
               <Button 

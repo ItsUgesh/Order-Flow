@@ -9,13 +9,15 @@ import {
   BarChart3, 
   Users, 
   LogOut,
-  Coffee
+  Coffee,
+  Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { auth } from '@/lib/firebase';
 
 const menuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/admin/dashboard' },
+  { label: 'POS / New Order', icon: Calculator, href: '/pos' },
   { label: 'Menu Items', icon: UtensilsCrossed, href: '/admin/menu' },
   { label: 'Order History', icon: History, href: '/admin/orders' },
   { label: 'Sales Report', icon: BarChart3, href: '/admin/reports' },
