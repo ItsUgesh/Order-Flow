@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Receipt, 
   IndianRupee, 
   Timer, 
   Utensils,
-  ArrowUpRight,
   Printer
 } from 'lucide-react';
 import {
@@ -39,21 +38,33 @@ export default function DashboardPage() {
     today.setHours(0, 0, 0, 0);
 
     const qOrders = query(
-      collection(db, 'orders'), 
+      collection(db, 'orders'),
       where('createdAt', '>=', today),
       orderBy('createdAt', 'desc')
     );
-    
+
     const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
       let revenue = 0;
       let holdCount = 0;
+      let orderCount = 0;
+
       snapshot.docs.forEach(doc => {
         const data = doc.data();
+        // exclude cancelled orders from all counts
+        if (data.status === 'cancelled') return;
+        orderCount++;
         if (data.status === 'paid') revenue += data.total;
         if (data.status === 'on_hold') holdCount++;
       });
-      setStats(prev => ({ ...prev, totalOrders: snapshot.size, revenue, onHold: holdCount }));
-      setRecentOrders(snapshot.docs.slice(0, 10).map(d => ({ id: d.id, ...d.data() })));
+
+      setStats(prev => ({ ...prev, totalOrders: orderCount, revenue, onHold: holdCount }));
+
+      // exclude cancelled from recent orders list
+      const filtered = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((o: any) => o.status !== 'cancelled')
+        .slice(0, 10);
+      setRecentOrders(filtered);
     });
 
     const qItems = query(collection(db, 'menuItems'));
@@ -66,9 +77,20 @@ export default function DashboardPage() {
 
   const handlePrint = (order: any) => {
     setPrintOrder(order);
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    setTimeout(() => window.print(), 100);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Paid</Badge>;
+      case 'on_hold':
+        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">On Hold</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none">Cancelled</Badge>;
+      default:
+        return <Badge className="bg-slate-100 text-slate-700 border-none">{status}</Badge>;
+    }
   };
 
   const statCards = [
@@ -81,7 +103,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <PrintableReceipt order={printOrder} />
-      
+
       <div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Dashboard Overview</h1>
         <p className="text-slate-500">Welcome back, manager. Here is your daily summary.</p>
@@ -95,9 +117,7 @@ export default function DashboardPage() {
                 <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
                   <stat.icon className="w-6 h-6" />
                 </div>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-400">
-                  Daily
-                </Badge>
+                <Badge variant="secondary" className="bg-slate-100 text-slate-400">Daily</Badge>
               </div>
               <p className="text-slate-500 font-medium mb-1">{stat.label}</p>
               <h3 className="text-2xl font-black text-slate-900">{stat.value}</h3>
@@ -136,17 +156,13 @@ export default function DashboardPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="capitalize bg-slate-100">
-                      {order.type.replace('_', ' ')} {order.tableNumber && `(T${order.tableNumber})`}
+                      {order.type?.replace('_', ' ')} {order.tableNumber && `(T${order.tableNumber})`}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-bold text-slate-900">Rs {order.total.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge className={order.status === 'paid' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none' : 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none'}>
-                      {order.status === 'paid' ? 'Paid' : 'On Hold'}
-                    </Badge>
-                  </TableCell>
+                  <TableCell className="font-bold text-slate-900">Rs {order.total?.toFixed(2)}</TableCell>
+                  <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell className="text-right">
-                    <button 
+                    <button
                       onClick={() => handlePrint(order)}
                       className="text-orange-600 hover:text-orange-800 font-bold text-sm flex items-center gap-1 ml-auto"
                     >
