@@ -9,7 +9,8 @@ import {
   IndianRupee, 
   Timer, 
   Utensils,
-  ArrowUpRight
+  ArrowUpRight,
+  Printer
 } from 'lucide-react';
 import {
   Table,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import PrintableReceipt from '@/components/pos/PrintableReceipt';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -30,6 +32,7 @@ export default function DashboardPage() {
     totalItems: 0
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [printOrder, setPrintOrder] = useState<any | null>(null);
 
   useEffect(() => {
     const today = new Date();
@@ -61,15 +64,24 @@ export default function DashboardPage() {
     return () => unsubscribeOrders();
   }, []);
 
+  const handlePrint = (order: any) => {
+    setPrintOrder(order);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   const statCards = [
     { label: 'Total Orders Today', value: stats.totalOrders, icon: Receipt, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { label: 'Total Revenue Today', value: `NPR ${stats.revenue.toFixed(2)}`, icon: IndianRupee, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+    { label: 'Total Revenue Today', value: `Rs ${stats.revenue.toFixed(2)}`, icon: IndianRupee, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
     { label: 'On-Hold Orders', value: stats.onHold, icon: Timer, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Total Menu Items', value: stats.totalItems, icon: Utensils, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
   ];
 
   return (
     <div className="space-y-8">
+      <PrintableReceipt order={printOrder} />
+      
       <div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Dashboard Overview</h1>
         <p className="text-slate-500">Welcome back, manager. Here is your daily summary.</p>
@@ -127,15 +139,18 @@ export default function DashboardPage() {
                       {order.type.replace('_', ' ')} {order.tableNumber && `(T${order.tableNumber})`}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-bold text-slate-900">NPR {order.total.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold text-slate-900">Rs {order.total.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge className={order.status === 'paid' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none' : 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none'}>
                       {order.status === 'paid' ? 'Paid' : 'On Hold'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <button className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1 ml-auto">
-                      View <ArrowUpRight className="w-3 h-3" />
+                    <button 
+                      onClick={() => handlePrint(order)}
+                      className="text-orange-600 hover:text-orange-800 font-bold text-sm flex items-center gap-1 ml-auto"
+                    >
+                      Print <Printer className="w-4 h-4" />
                     </button>
                   </TableCell>
                 </TableRow>
