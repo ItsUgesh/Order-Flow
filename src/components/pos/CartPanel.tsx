@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { MenuItem } from './MenuGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,7 @@ export default function CartPanel({
   const [isDineIn, setIsDineIn] = useState(false);
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [heldOrders, setHeldOrders] = useState<any[]>([]);
   const [chargingOrder, setChargingOrder] = useState<any | null>(null);
   const [lastProcessedOrder, setLastProcessedOrder] = useState<any | null>(null);
@@ -161,10 +162,14 @@ export default function CartPanel({
 
       setLastProcessedOrder(finalOrderData);
       
-      toast({ 
-        title: status === 'paid' ? "Order Completed" : "Order Held", 
-        description: `Order ${finalOrderData.orderNumber} ${status === 'paid' ? 'paid via ' + (method || 'method') : 'saved as hold'}` 
-      });
+      if (status === 'paid') {
+        setIsSuccessModalOpen(true);
+      } else {
+        toast({ 
+          title: "Order Held", 
+          description: `Order ${finalOrderData.orderNumber} saved as hold` 
+        });
+      }
 
       if (!chargingOrder) {
         onClearCart();
@@ -177,6 +182,14 @@ export default function CartPanel({
       console.error(err);
       toast({ title: "Error", description: "Failed to process order", variant: "destructive" });
     }
+  };
+
+  const closeSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    toast({ 
+      title: "Order Processed", 
+      description: `Order #${lastProcessedOrder?.orderNumber} complete.` 
+    });
   };
 
   return (
@@ -194,7 +207,6 @@ export default function CartPanel({
         </div>
 
         <TabsContent value="current" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=inactive]:hidden">
-          {/* Top Section: Fixed Header and Controls */}
           <div className="flex-shrink-0 z-20 bg-white">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2">
@@ -253,7 +265,6 @@ export default function CartPanel({
             </div>
           </div>
 
-          {/* Middle Section: Scrollable Cart Items */}
           <div className="flex-1 overflow-y-auto min-h-0 relative z-10 bg-white">
             <div className="p-6 space-y-4">
               {cart.length === 0 ? (
@@ -298,7 +309,6 @@ export default function CartPanel({
             </div>
           </div>
 
-          {/* Bottom Section: Fixed Totals and Actions */}
           <div className="flex-shrink-0 p-6 bg-slate-50 border-t space-y-4 z-20">
             <div className="space-y-2">
               <div className="flex justify-between text-slate-500 text-sm">
@@ -400,16 +410,6 @@ export default function CartPanel({
                 <span className="font-bold text-slate-700">Online/Card</span>
               </button>
             </div>
-
-            {lastProcessedOrder && lastProcessedOrder.status === 'paid' && (
-              <Button 
-                variant="outline" 
-                className="mt-8 w-full h-12 rounded-xl border-slate-200 font-bold flex items-center justify-center gap-2"
-                onClick={handlePrint}
-              >
-                <Printer className="w-4 h-4" /> Print Receipt
-              </Button>
-            )}
           </div>
           <DialogFooter className="p-4 bg-slate-50 border-t">
             <Button variant="ghost" onClick={() => {
@@ -417,6 +417,47 @@ export default function CartPanel({
               setChargingOrder(null);
             }} className="w-full text-slate-500">Cancel</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+          <div className="p-8 text-center bg-white">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 bg-green-100 rounded-full">
+                <CheckCircle2 className="w-12 h-12 text-green-600" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Order Complete!</h2>
+            <p className="text-slate-500 mb-6 font-medium">
+              Order <span className="text-slate-900 font-bold">#{lastProcessedOrder?.orderNumber}</span> has been processed successfully.
+            </p>
+            
+            <div className="bg-slate-50 rounded-2xl p-6 mb-8">
+              <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Total Amount</p>
+              <h3 className="text-4xl font-black text-orange-600">Rs {lastProcessedOrder?.total.toFixed(2)}</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-14 rounded-xl border-slate-200 font-bold text-slate-600"
+                onClick={closeSuccessModal}
+              >
+                Done
+              </Button>
+              <Button 
+                className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20"
+                onClick={() => {
+                  handlePrint();
+                  closeSuccessModal();
+                }}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Receipt
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </aside>

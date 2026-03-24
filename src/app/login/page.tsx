@@ -7,7 +7,7 @@ import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Coffee, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -104,7 +104,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-orange-950 p-4">
-      <Card className="w-full max-w-md border-slate-800 bg-white shadow-2xl rounded-2xl">
+      <Card className="w-full max-w-md border-slate-800 bg-white shadow-2xl rounded-2xl overflow-hidden">
         <CardHeader className="text-center space-y-1">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-orange-500 rounded-full text-white shadow-lg shadow-orange-500/20">
@@ -114,7 +114,7 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">Cafe Compass</CardTitle>
           <CardDescription className="text-slate-500">Sign in to your account to continue</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-8">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700">Email</Label>
@@ -141,16 +141,13 @@ export default function LoginPage() {
             </div>
             <Button 
               type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-6 rounded-pill transition-all"
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-6 rounded-xl transition-all mt-4"
               disabled={isLoading}
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-center text-sm text-slate-400">
-          <p>Default Admin: admin@cafe.com / admin123</p>
-        </CardFooter>
       </Card>
     </div>
   );
