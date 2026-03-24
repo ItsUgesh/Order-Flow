@@ -8,7 +8,7 @@ import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, Al
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -121,7 +121,6 @@ export default function CartPanel({
           ...existingTableOrder,
           items: mergedItems,
           total: newTotal,
-          subtotal: newTotal,
           status,
           paymentMethod: method,
           paidAt: status === 'paid' ? serverTimestamp() : null,
@@ -131,7 +130,6 @@ export default function CartPanel({
         await updateDoc(doc(db, 'orders', existingTableOrder.id), {
           items: mergedItems,
           total: newTotal,
-          subtotal: newTotal,
           status,
           paymentMethod: method,
           paidAt: status === 'paid' ? serverTimestamp() : null,
@@ -422,6 +420,10 @@ export default function CartPanel({
 
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Order Complete</DialogTitle>
+            <DialogDescription>Your order has been processed successfully.</DialogDescription>
+          </DialogHeader>
           <div className="p-8 text-center bg-white">
             <div className="flex justify-center mb-6">
               <div className="p-4 bg-green-100 rounded-full">
