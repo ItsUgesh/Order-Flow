@@ -58,22 +58,47 @@
   }
 }
 
+@page {
+  size: 88mm auto;
+  margin: 0;
+}
+
 @media print {
+  * {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  html, body {
+    width: 88mm !important;
+    max-width: 88mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
   body * {
     visibility: hidden;
   }
-  #printable-receipt, #printable-receipt * {
-    visibility: visible;
+
+  #receipt-print-area,
+  #receipt-print-area * {
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
   }
-  #printable-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 88mm;
-    background: white;
-  }
-  @page {
-    margin: 0;
-    size: auto;
+
+  #receipt-print-area {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 88mm !important;
+    max-width: 88mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    color: #000 !important;
+    background: #fff !important;
   }
 }

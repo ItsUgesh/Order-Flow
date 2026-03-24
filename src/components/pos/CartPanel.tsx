@@ -192,9 +192,7 @@ export default function CartPanel({
 
   return (
     <aside className="bg-white border-l flex flex-col h-full shadow-xl relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none z-[100]">
-        <PrintableReceipt order={lastProcessedOrder} />
-      </div>
+      <PrintableReceipt order={lastProcessedOrder} />
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden relative z-10">
         <div className="px-6 pt-6 border-b bg-slate-50 flex-shrink-0">
