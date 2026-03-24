@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,21 +20,32 @@ export interface MenuItem {
 
 export default function MenuGrid({ onAddItem }: { onAddItem: (item: MenuItem) => void }) {
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const categories = ['All', 'Beverages', 'Bakery', 'Food', 'Desserts'];
-
   useEffect(() => {
-    const q = query(collection(db, 'menuItems'), where('available', '==', true));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Fetch categories dynamically
+    const qCats = query(collection(db, 'categories'), orderBy('createdAt', 'asc'));
+    const unsubscribeCats = onSnapshot(qCats, (snapshot) => {
+      const catList = ['All', ...snapshot.docs.map(doc => doc.data().name)];
+      setCategories(catList);
+    });
+
+    // Fetch items
+    const qItems = query(collection(db, 'menuItems'), where('available', '==', true));
+    const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
       const menuData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as MenuItem[];
       setItems(menuData);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeCats();
+      unsubscribeItems();
+    };
   }, []);
 
   const filteredItems = items.filter(item => {
@@ -46,14 +57,14 @@ export default function MenuGrid({ onAddItem }: { onAddItem: (item: MenuItem) =>
   return (
     <div className="flex flex-col h-full bg-slate-50/50 p-6 overflow-hidden">
       <div className="flex flex-col gap-4 mb-6">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 overflow-x-auto pb-2 scrollbar-hide">
           <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-fit">
-            <TabsList className="bg-white border rounded-xl p-1 h-12">
+            <TabsList className="bg-white border rounded-xl p-1 h-12 flex flex-nowrap">
               {categories.map(cat => (
                 <TabsTrigger 
                   key={cat} 
                   value={cat}
-                  className="rounded-lg px-6 data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all"
+                  className="rounded-lg px-6 data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all whitespace-nowrap"
                 >
                   {cat}
                 </TabsTrigger>
@@ -61,7 +72,7 @@ export default function MenuGrid({ onAddItem }: { onAddItem: (item: MenuItem) =>
             </TabsList>
           </Tabs>
           
-          <div className="relative w-64">
+          <div className="relative w-64 flex-shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input 
               placeholder="Search menu..." 

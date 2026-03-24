@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Edit2, Trash2, Sparkles, Loader2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Sparkles, Loader2, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateMenuDescription } from '@/ai/flows/generate-menu-description';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function MenuManagementPage() {
   const [items, setItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -33,12 +35,64 @@ export default function MenuManagementPage() {
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'menuItems'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qItems = query(collection(db, 'menuItems'), orderBy('createdAt', 'desc'));
+    const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => unsubscribe();
+
+    const qCats = query(collection(db, 'categories'), orderBy('createdAt', 'asc'));
+    const unsubscribeCats = onSnapshot(qCats, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeItems();
+      unsubscribeCats();
+    };
   }, []);
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    const exists = categories.some(c => c.name.toLowerCase() === newCategoryName.trim().toLowerCase());
+    if (exists) {
+      toast({ title: "Duplicate Category", description: "This category already exists.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'categories'), {
+        name: newCategoryName.trim(),
+        createdAt: serverTimestamp()
+      });
+      setNewCategoryName('');
+      toast({ title: "Category Added", description: `"${newCategoryName}" created successfully.` });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add category", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCategory = async (category: any) => {
+    const isUsed = items.some(item => item.category === category.name);
+    if (isUsed) {
+      const count = items.filter(item => item.category === category.name).length;
+      toast({ 
+        title: "Cannot Delete", 
+        description: `Cannot delete — ${count} menu items use this category.`, 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete the category "${category.name}"?`)) {
+      try {
+        await deleteDoc(doc(db, 'categories', category.id));
+        toast({ title: "Category Deleted" });
+      } catch (err) {
+        toast({ title: "Error", description: "Failed to delete category", variant: "destructive" });
+      }
+    }
+  };
 
   const handleOpenModal = (item: any = null) => {
     if (item) {
@@ -52,7 +106,13 @@ export default function MenuManagementPage() {
       });
     } else {
       setEditingItem(null);
-      setFormData({ name: '', category: '', price: '', available: true, description: '' });
+      setFormData({ 
+        name: '', 
+        category: categories.length > 0 ? categories[0].name : '', 
+        price: '', 
+        available: true, 
+        description: '' 
+      });
     }
     setIsModalOpen(true);
   };
@@ -79,7 +139,7 @@ export default function MenuManagementPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       await deleteDoc(doc(db, 'menuItems', id));
       toast({ title: "Deleted", description: "Item removed from menu" });
@@ -109,7 +169,7 @@ export default function MenuManagementPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-20">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Menu Management</h1>
@@ -120,10 +180,44 @@ export default function MenuManagementPage() {
         </Button>
       </div>
 
+      {/* Category Management Section */}
+      <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
+        <CardContent className="p-6 space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            Categories Management
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {categories.map(cat => (
+              <Badge key={cat.id} variant="secondary" className="bg-slate-100 text-slate-600 py-1.5 pl-3 pr-2 flex items-center gap-1 group">
+                {cat.name}
+                <button 
+                  onClick={() => handleDeleteCategory(cat)}
+                  className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+          <div className="flex gap-2 max-w-sm">
+            <Input 
+              placeholder="New category name..." 
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="rounded-xl"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+            />
+            <Button onClick={handleAddCategory} className="bg-slate-900 text-white rounded-xl">
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <Input 
-          placeholder="Filter by name or category..." 
+          placeholder="Filter items by name or category..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10 bg-white border-slate-200 rounded-xl"
@@ -139,16 +233,16 @@ export default function MenuManagementPage() {
                   {item.category}
                 </Badge>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenModal(item)} className="h-8 w-8 text-slate-400 hover:text-orange-600">
+                  <button onClick={() => handleOpenModal(item)} className="p-2 text-slate-400 hover:text-orange-600 transition-colors">
                     <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8 text-slate-400 hover:text-red-600">
+                  </button>
+                  <button onClick={() => handleDeleteItem(item.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
                     <Trash2 className="w-4 h-4" />
-                  </Button>
+                  </button>
                 </div>
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-1">{item.name}</h3>
-              <p className="text-2xl font-black text-orange-600 mb-4">NPR {item.price.toFixed(2)}</p>
+              <p className="text-2xl font-black text-orange-600 mb-4">Rs {item.price.toFixed(2)}</p>
               
               <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                 <span className="text-sm font-medium text-slate-500">Status</span>
@@ -184,13 +278,12 @@ export default function MenuManagementPage() {
                   onValueChange={v => setFormData({...formData, category: v})}
                 >
                   <SelectTrigger className="rounded-xl border-slate-200">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Beverages">Beverages</SelectItem>
-                    <SelectItem value="Bakery">Bakery</SelectItem>
-                    <SelectItem value="Food">Food</SelectItem>
-                    <SelectItem value="Desserts">Desserts</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -198,7 +291,7 @@ export default function MenuManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-700">Price (NPR)</Label>
+                <Label className="text-slate-700">Price (Rs)</Label>
                 <Input 
                   type="number" 
                   step="0.01"

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,17 @@ export default function LoginPage() {
               role: 'admin',
               createdAt: serverTimestamp(),
             });
+
+            // Seed Categories
+            const categoriesRef = collection(db, 'categories');
+            const catSnap = await getDocs(categoriesRef);
+            if (catSnap.empty) {
+              const defaultCats = ['Beverages', 'Bakery', 'Food', 'Desserts', 'Snacks', 'Breakfast', 'Lunch', 'Dinner'];
+              for (const cat of defaultCats) {
+                await addDoc(categoriesRef, { name: cat, createdAt: serverTimestamp() });
+              }
+            }
+
             // Also seed some initial menu items
             const initialMenu = [
               { name: 'Espresso', category: 'Beverages', price: 300, available: true },
