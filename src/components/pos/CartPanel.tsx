@@ -20,14 +20,14 @@ interface CartItem extends MenuItem {
   quantity: number;
 }
 
-export default function CartPanel({ 
-  cart, 
-  onUpdateQuantity, 
+export default function CartPanel({
+  cart,
+  onUpdateQuantity,
   onRemoveItem,
   onClearCart,
   profile
-}: { 
-  cart: CartItem[]; 
+}: {
+  cart: CartItem[];
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
@@ -42,6 +42,7 @@ export default function CartPanel({
   const [chargingOrder, setChargingOrder] = useState<any | null>(null);
   const [lastProcessedOrder, setLastProcessedOrder] = useState<any | null>(null);
   const [existingTableOrder, setExistingTableOrder] = useState<any | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<any | null>(null);
   const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -159,13 +160,13 @@ export default function CartPanel({
       }
 
       setLastProcessedOrder(finalOrderData);
-      
+
       if (status === 'paid') {
         setIsSuccessModalOpen(true);
       } else {
-        toast({ 
-          title: "Order Held", 
-          description: `Order ${finalOrderData.orderNumber} saved as hold` 
+        toast({
+          title: "Order Held",
+          description: `Order ${finalOrderData.orderNumber} saved as hold`
         });
       }
 
@@ -184,16 +185,29 @@ export default function CartPanel({
 
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
-    toast({ 
-      title: "Order Processed", 
-      description: `Order #${lastProcessedOrder?.orderNumber} complete.` 
+    toast({
+      title: "Order Processed",
+      description: `Order #${lastProcessedOrder?.orderNumber} complete.`
     });
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancellingOrder) return;
+    try {
+      await updateDoc(doc(db, 'orders', cancellingOrder.id), {
+        status: 'cancelled'
+      });
+      setCancellingOrder(null);
+      toast({ title: "Order Cancelled", description: `Order ${cancellingOrder.orderNumber} has been cancelled.` });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to cancel order", variant: "destructive" });
+    }
   };
 
   return (
     <aside className="bg-white border-l flex flex-col h-full shadow-xl relative overflow-hidden">
       <PrintableReceipt order={lastProcessedOrder} />
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden relative z-10">
         <div className="px-6 pt-6 border-b bg-slate-50 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -246,9 +260,9 @@ export default function CartPanel({
                           key={num}
                           onClick={() => setSelectedTable(num)}
                           className={`h-9 text-xs font-bold rounded-lg border transition-all ${
-                            selectedTable === num 
-                            ? 'bg-orange-500 border-orange-500 text-white shadow-md' 
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                            selectedTable === num
+                              ? 'bg-orange-500 border-orange-500 text-white shadow-md'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
                           }`}
                         >
                           T{num}
@@ -277,18 +291,18 @@ export default function CartPanel({
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2 bg-white rounded-lg p-1 border">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-slate-600 hover:bg-slate-50"
                           onClick={() => onUpdateQuantity(item.id, -1)}
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
                         <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-slate-600 hover:bg-slate-50"
                           onClick={() => onUpdateQuantity(item.id, 1)}
                         >
@@ -319,15 +333,15 @@ export default function CartPanel({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-14 rounded-xl border-slate-300 font-bold"
                 onClick={() => handleCompleteOrder(null, 'on_hold')}
                 disabled={cart.length === 0 || (isDineIn && !selectedTable)}
               >
                 Hold Order
               </Button>
-              <Button 
+              <Button
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20 transition-all"
                 onClick={() => handleCharge()}
                 disabled={cart.length === 0 || (isDineIn && !selectedTable)}
@@ -362,12 +376,21 @@ export default function CartPanel({
                     <div className="text-xs text-slate-500 mb-4">
                       {order.type === 'dine_in' ? `Dine-In (Table ${order.tableNumber})` : 'Takeaway'} • {order.items?.length} items
                     </div>
-                    <Button 
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl"
-                      onClick={() => handleCharge(order)}
-                    >
-                      Charge Order
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 font-bold rounded-xl"
+                        onClick={() => setCancellingOrder(order)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl"
+                        onClick={() => handleCharge(order)}
+                      >
+                        Charge
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -384,9 +407,8 @@ export default function CartPanel({
           <div className="p-10 text-center bg-white">
             <p className="text-slate-500 mb-2 font-medium">Payable Amount</p>
             <h3 className="text-5xl font-black text-slate-900 mb-8">Rs {(chargingOrder ? chargingOrder.total : total).toFixed(2)}</h3>
-            
             <div className="grid grid-cols-2 gap-6">
-              <button 
+              <button
                 onClick={() => handleCompleteOrder('cash', 'paid')}
                 className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
               >
@@ -395,8 +417,7 @@ export default function CartPanel({
                 </div>
                 <span className="font-bold text-slate-700">Cash Payment</span>
               </button>
-              
-              <button 
+              <button
                 onClick={() => handleCompleteOrder('online', 'paid')}
                 className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
               >
@@ -432,21 +453,19 @@ export default function CartPanel({
             <p className="text-slate-500 mb-6 font-medium">
               Order <span className="text-slate-900 font-bold">#{lastProcessedOrder?.orderNumber}</span> has been processed successfully.
             </p>
-            
             <div className="bg-slate-50 rounded-2xl p-6 mb-8">
               <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Total Amount</p>
               <h3 className="text-4xl font-black text-orange-600">Rs {lastProcessedOrder?.total.toFixed(2)}</h3>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-14 rounded-xl border-slate-200 font-bold text-slate-600"
                 onClick={closeSuccessModal}
               >
                 Done
               </Button>
-              <Button 
+              <Button
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20"
                 onClick={() => {
                   handlePrint();
@@ -455,6 +474,42 @@ export default function CartPanel({
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Receipt
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!cancellingOrder} onOpenChange={() => setCancellingOrder(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-none p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-red-500 text-white">
+            <DialogTitle className="text-xl font-bold">Cancel Order?</DialogTitle>
+            <DialogDescription className="text-red-100">
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 bg-white">
+            <p className="text-slate-600 mb-2">You are about to cancel:</p>
+            <div className="bg-slate-50 rounded-xl p-4 mb-6">
+              <p className="font-bold text-slate-900">{cancellingOrder?.orderNumber}</p>
+              <p className="text-sm text-slate-500">
+                {cancellingOrder?.type === 'dine_in' ? `Dine-In (Table ${cancellingOrder?.tableNumber})` : 'Takeaway'} • {cancellingOrder?.items?.length} items
+              </p>
+              <p className="font-bold text-orange-600 mt-1">Rs {cancellingOrder?.total?.toFixed(2)}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-12 rounded-xl font-bold"
+                onClick={() => setCancellingOrder(null)}
+              >
+                Keep Order
+              </Button>
+              <Button
+                className="h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
+                onClick={handleCancelOrder}
+              >
+                Yes, Cancel
               </Button>
             </div>
           </div>
