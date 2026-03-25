@@ -121,15 +121,17 @@ export default function StaffManagementPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleStatus(member)}
-                    className={member.inactive ? "text-green-600 hover:text-green-800" : "text-red-600 hover:text-red-800"}
-                  >
-                    {member.inactive ? <ShieldCheck className="w-4 h-4 mr-1" /> : <ShieldAlert className="w-4 h-4 mr-1" />}
-                    {member.inactive ? 'Activate' : 'Deactivate'}
-                  </Button>
+                  {member.role !== 'admin' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleStatus(member)}
+                      className={member.inactive ? "text-green-600 hover:text-green-800" : "text-red-600 hover:text-red-800"}
+                    >
+                      {member.inactive ? <ShieldCheck className="w-4 h-4 mr-1" /> : <ShieldAlert className="w-4 h-4 mr-1" />}
+                      {member.inactive ? 'Activate' : 'Deactivate'}
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -157,15 +159,17 @@ export default function StaffManagementPage() {
                   {member.createdAt?.seconds ? format(new Date(member.createdAt.seconds * 1000), 'MMM dd, yyyy') : '-'}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleStatus(member)}
-                className={`text-xs h-8 px-3 ${member.inactive ? "text-green-600 hover:text-green-800 hover:bg-green-50" : "text-red-600 hover:text-red-800 hover:bg-red-50"}`}
-              >
-                {member.inactive ? <ShieldCheck className="w-3.5 h-3.5 mr-1" /> : <ShieldAlert className="w-3.5 h-3.5 mr-1" />}
-                {member.inactive ? 'Activate' : 'Deactivate'}
-              </Button>
+              {member.role !== 'admin' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleStatus(member)}
+                  className={`text-xs h-8 px-3 ${member.inactive ? "text-green-600 hover:text-green-800 hover:bg-green-50" : "text-red-600 hover:text-red-800 hover:bg-red-50"}`}
+                >
+                  {member.inactive ? <ShieldCheck className="w-3.5 h-3.5 mr-1" /> : <ShieldAlert className="w-3.5 h-3.5 mr-1" />}
+                  {member.inactive ? 'Activate' : 'Deactivate'}
+                </Button>
+              )}
             </div>
           </div>
         ))}
