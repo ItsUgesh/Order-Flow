@@ -6,7 +6,7 @@ import { db, auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -45,10 +45,6 @@ export default function StaffManagementPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Note: This creates a user in the same session. 
-      // In production, we'd use a Cloud Function to avoid logging out the admin.
-      // For this demo, we use setDoc in Firestore assuming we have the ID.
-      // But creating auth user directly works too.
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
@@ -58,9 +54,9 @@ export default function StaffManagementPage() {
         inactive: false,
         createdAt: serverTimestamp()
       });
-      
       toast({ title: "Staff Created", description: "Account created successfully" });
       setIsModalOpen(false);
+      setFormData({ name: '', email: '', password: '' });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -80,18 +76,23 @@ export default function StaffManagementPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Staff Management</h1>
-          <p className="text-slate-500">Manage access control and staff permissions.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Staff Management</h1>
+          <p className="text-slate-500 text-sm">Manage access control and staff permissions.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-12 px-6">
-          <Plus className="w-5 h-5 mr-2" /> Add Staff Account
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-10 px-4 text-sm w-full sm:w-auto"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Add Staff
         </Button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
@@ -107,13 +108,11 @@ export default function StaffManagementPage() {
             {staff.map((member) => (
               <TableRow key={member.id} className="hover:bg-slate-50 transition-colors">
                 <TableCell className="font-bold text-slate-900">{member.name}</TableCell>
-                <TableCell className="text-slate-500">{member.email}</TableCell>
+                <TableCell className="text-slate-500 text-sm">{member.email}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="capitalize text-xs">
-                    {member.role}
-                  </Badge>
+                  <Badge variant="outline" className="capitalize text-xs">{member.role}</Badge>
                 </TableCell>
-                <TableCell className="text-slate-500">
+                <TableCell className="text-slate-500 text-sm">
                   {member.createdAt?.seconds ? format(new Date(member.createdAt.seconds * 1000), 'MMM dd, yyyy') : '-'}
                 </TableCell>
                 <TableCell>
@@ -122,9 +121,9 @@ export default function StaffManagementPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => toggleStatus(member)}
                     className={member.inactive ? "text-green-600 hover:text-green-800" : "text-red-600 hover:text-red-800"}
                   >
@@ -138,54 +137,88 @@ export default function StaffManagementPage() {
         </Table>
       </div>
 
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {staff.map((member) => (
+          <div key={member.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="font-bold text-slate-900">{member.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{member.email}</p>
+              </div>
+              <Badge className={!member.inactive ? 'bg-green-100 text-green-700 border-none' : 'bg-red-100 text-red-700 border-none'}>
+                {!member.inactive ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize text-xs">{member.role}</Badge>
+                <span className="text-xs text-slate-400">
+                  {member.createdAt?.seconds ? format(new Date(member.createdAt.seconds * 1000), 'MMM dd, yyyy') : '-'}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleStatus(member)}
+                className={`text-xs h-8 px-3 ${member.inactive ? "text-green-600 hover:text-green-800 hover:bg-green-50" : "text-red-600 hover:text-red-800 hover:bg-red-50"}`}
+              >
+                {member.inactive ? <ShieldCheck className="w-3.5 h-3.5 mr-1" /> : <ShieldAlert className="w-3.5 h-3.5 mr-1" />}
+                {member.inactive ? 'Activate' : 'Deactivate'}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl mx-4">
           <DialogHeader className="p-6 bg-slate-900 text-white">
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <UserPlus className="w-6 h-6 text-orange-400" />
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-orange-400" />
               New Staff Member
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddStaff} className="p-8 space-y-6 bg-white">
+          <form onSubmit={handleAddStaff} className="p-6 space-y-4 bg-white">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-700">Full Name</Label>
-                <Input 
+                <Input
                   required
                   placeholder="John Doe"
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="rounded-xl border-slate-200"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700">Email Address</Label>
-                <Input 
+                <Input
                   type="email"
                   required
                   placeholder="john@cafe.com"
                   value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
                   className="rounded-xl border-slate-200"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700">Initial Password</Label>
-                <Input 
+                <Input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
                   className="rounded-xl border-slate-200"
                 />
               </div>
             </div>
-
-            <DialogFooter className="pt-4 border-t gap-2">
-              <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl px-8">
-                {loading ? "Creating..." : "Create Staff Account"}
+            <DialogFooter className="pt-4 border-t gap-2 flex-col sm:flex-row">
+              <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+              <Button type="submit" disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl px-8 w-full sm:w-auto">
+                {loading ? "Creating..." : "Create Account"}
               </Button>
             </DialogFooter>
           </form>

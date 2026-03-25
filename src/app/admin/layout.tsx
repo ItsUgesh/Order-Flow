@@ -29,9 +29,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pl-72">
+    <div className="min-h-screen bg-slate-50 lg:pl-72">
       <AdminSidebar />
-      <main className="p-8 max-w-7xl mx-auto">
+      {/* Top bar for mobile — gives space for hamburger button */}
+      <div className="lg:hidden h-14 bg-white border-b flex items-center px-16 shadow-sm">
+        <span className="font-bold text-slate-900">Cafe Compass Admin</span>
+      </div>
+      <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {children}
       </main>
     </div>
