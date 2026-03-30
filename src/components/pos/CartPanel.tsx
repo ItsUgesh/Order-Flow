@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { MenuItem } from './MenuGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -106,6 +106,7 @@ export default function CartPanel({
   const [lastProcessedOrder, setLastProcessedOrder] = useState<any | null>(null);
   const [existingTableOrder, setExistingTableOrder] = useState<any | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<any | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -144,6 +145,8 @@ export default function CartPanel({
   };
 
   const handleCompleteOrder = async (method: 'cash' | 'online' | null, status: 'paid' | 'on_hold') => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       let finalOrderData;
 
@@ -233,6 +236,8 @@ export default function CartPanel({
     } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "Failed to process order", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -372,14 +377,14 @@ export default function CartPanel({
                 variant="outline"
                 className="h-14 rounded-xl border-slate-300 font-bold"
                 onClick={() => handleCompleteOrder(null, 'on_hold')}
-                disabled={cart.length === 0 || (isDineIn && !selectedTable)}
+                disabled={cart.length === 0 || (isDineIn && !selectedTable) || isProcessing}
               >
-                Hold Order
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Hold Order'}
               </Button>
               <Button
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20 transition-all"
                 onClick={() => handleCharge()}
-                disabled={cart.length === 0 || (isDineIn && !selectedTable)}
+                disabled={cart.length === 0 || (isDineIn && !selectedTable) || isProcessing}
               >
                 Charge Order
               </Button>
@@ -416,12 +421,14 @@ export default function CartPanel({
                         variant="outline"
                         className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 font-bold rounded-xl"
                         onClick={() => setCancellingOrder(order)}
+                        disabled={isProcessing}
                       >
                         Cancel
                       </Button>
                       <Button
                         className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl"
                         onClick={() => handleCharge(order)}
+                        disabled={isProcessing}
                       >
                         Charge
                       </Button>
@@ -435,37 +442,57 @@ export default function CartPanel({
       </Tabs>
 
       {/* Payment Modal */}
-      <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+      <Dialog open={isPaymentModalOpen} onOpenChange={(open) => {
+        if (!isProcessing) setIsPaymentModalOpen(open);
+      }}>
         <DialogContent className="sm:max-w-md rounded-2xl overflow-hidden border-none p-0">
           <DialogHeader className="p-6 bg-slate-900 text-white">
             <DialogTitle className="text-2xl font-bold">Checkout</DialogTitle>
           </DialogHeader>
           <div className="p-10 text-center bg-white">
             <p className="text-slate-500 mb-2 font-medium">Payable Amount</p>
-            <h3 className="text-5xl font-black text-slate-900 mb-8">Rs {(chargingOrder ? chargingOrder.total : total).toFixed(2)}</h3>
-            <div className="grid grid-cols-2 gap-6">
-              <button
-                onClick={() => handleCompleteOrder('cash', 'paid')}
-                className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
-              >
-                <div className="p-4 bg-green-100 text-green-600 rounded-full group-hover:bg-orange-100 group-hover:text-orange-600">
-                  <Banknote className="w-8 h-8" />
-                </div>
-                <span className="font-bold text-slate-700">Cash Payment</span>
-              </button>
-              <button
-                onClick={() => handleCompleteOrder('online', 'paid')}
-                className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
-              >
-                <div className="p-4 bg-blue-100 text-blue-600 rounded-full group-hover:bg-orange-100 group-hover:text-orange-600">
-                  <Wallet className="w-8 h-8" />
-                </div>
-                <span className="font-bold text-slate-700">Online/Card</span>
-              </button>
-            </div>
+            <h3 className="text-5xl font-black text-slate-900 mb-8">
+              Rs {(chargingOrder ? chargingOrder.total : total).toFixed(2)}
+            </h3>
+            {isProcessing ? (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <p className="text-slate-500 font-medium">Processing order...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-6">
+                <button
+                  onClick={() => handleCompleteOrder('cash', 'paid')}
+                  disabled={isProcessing}
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="p-4 bg-green-100 text-green-600 rounded-full group-hover:bg-orange-100 group-hover:text-orange-600">
+                    <Banknote className="w-8 h-8" />
+                  </div>
+                  <span className="font-bold text-slate-700">Cash Payment</span>
+                </button>
+                <button
+                  onClick={() => handleCompleteOrder('online', 'paid')}
+                  disabled={isProcessing}
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="p-4 bg-blue-100 text-blue-600 rounded-full group-hover:bg-orange-100 group-hover:text-orange-600">
+                    <Wallet className="w-8 h-8" />
+                  </div>
+                  <span className="font-bold text-slate-700">Online/Card</span>
+                </button>
+              </div>
+            )}
           </div>
           <DialogFooter className="p-4 bg-slate-50 border-t">
-            <Button variant="ghost" onClick={() => { setIsPaymentModalOpen(false); setChargingOrder(null); }} className="w-full text-slate-500">Cancel</Button>
+            <Button
+              variant="ghost"
+              onClick={() => { setIsPaymentModalOpen(false); setChargingOrder(null); }}
+              disabled={isProcessing}
+              className="w-full text-slate-500"
+            >
+              Cancel
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
