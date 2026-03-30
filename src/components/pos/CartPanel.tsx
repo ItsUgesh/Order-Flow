@@ -14,11 +14,74 @@ import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, upd
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfile } from '@/lib/auth-store';
-import PrintableReceipt from './PrintableReceipt';
 
 interface CartItem extends MenuItem {
   quantity: number;
 }
+
+const printReceipt = (order: any) => {
+  const items = order.items?.map((item: any) =>
+    `<tr>
+      <td style="padding:3px 0">${item.name}</td>
+      <td style="text-align:center;padding:3px 0">${item.quantity}</td>
+      <td style="text-align:right;padding:3px 0">Rs ${(item.price * item.quantity).toFixed(2)}</td>
+    </tr>`
+  ).join('') || '';
+
+  const receiptHTML = `<!DOCTYPE html><html><head><title>Receipt</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { width:88mm; font-family:'Courier New',Courier,monospace; font-size:12px; line-height:1.4; color:#000; background:#fff; padding:16px; }
+      @page { size:88mm auto; margin:0; }
+      table { width:100%; border-collapse:collapse; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .row { display:flex; justify-content:space-between; }
+    </style></head><body>
+    <div class="center" style="margin-bottom:16px">
+      <p class="bold" style="font-size:14px;text-transform:uppercase">JP Food And Tandoori</p>
+      <p>Tel: 000-000-0000</p>
+      <p style="border-bottom:1px dashed black;margin-bottom:8px;padding-bottom:8px">================================</p>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="row">
+        <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>Time: ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      <p>Order #: ${order.orderNumber}</p>
+      <p>Type: ${order.type === 'dine_in' ? 'Dine-in' : 'Takeaway'}</p>
+      ${order.tableNumber ? `<p>Table: ${order.tableNumber}</p>` : ''}
+      <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
+    </div>
+    <table style="margin-bottom:12px">
+      <thead><tr style="border-bottom:1px dashed black">
+        <th style="text-align:left;padding-bottom:4px">Item Name</th>
+        <th style="text-align:center;padding-bottom:4px">Qty</th>
+        <th style="text-align:right;padding-bottom:4px">Price</th>
+      </tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div style="border-top:1px dashed black;padding-top:8px;margin-bottom:12px">
+      <div class="row"><span>Subtotal:</span><span>Rs ${(order.subtotal ?? order.total)?.toFixed(2)}</span></div>
+      <div class="row bold"><span>Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
+      <div class="row" style="text-transform:capitalize"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
+      <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
+    </div>
+    <div class="center">
+      <p>Thank you for your visit!</p>
+      <p>Please come again :)</p>
+      <p style="margin-top:8px">================================</p>
+    </div>
+    </body></html>`;
+
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (printWindow) {
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  }
+};
 
 export default function CartPanel({
   cart,
@@ -80,10 +143,6 @@ export default function CartPanel({
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleCompleteOrder = async (method: 'cash' | 'online' | null, status: 'paid' | 'on_hold') => {
     try {
       let finalOrderData;
@@ -115,9 +174,7 @@ export default function CartPanel({
             });
           }
         });
-
         const newTotal = mergedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-
         finalOrderData = {
           ...existingTableOrder,
           items: mergedItems,
@@ -127,7 +184,6 @@ export default function CartPanel({
           paidAt: status === 'paid' ? serverTimestamp() : null,
           updatedAt: serverTimestamp()
         };
-
         await updateDoc(doc(db, 'orders', existingTableOrder.id), {
           items: mergedItems,
           total: newTotal,
@@ -164,10 +220,7 @@ export default function CartPanel({
       if (status === 'paid') {
         setIsSuccessModalOpen(true);
       } else {
-        toast({
-          title: "Order Held",
-          description: `Order ${finalOrderData.orderNumber} saved as hold`
-        });
+        toast({ title: "Order Held", description: `Order ${finalOrderData.orderNumber} saved as hold` });
       }
 
       if (!chargingOrder) {
@@ -185,18 +238,13 @@ export default function CartPanel({
 
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
-    toast({
-      title: "Order Processed",
-      description: `Order #${lastProcessedOrder?.orderNumber} complete.`
-    });
+    toast({ title: "Order Processed", description: `Order #${lastProcessedOrder?.orderNumber} complete.` });
   };
 
   const handleCancelOrder = async () => {
     if (!cancellingOrder) return;
     try {
-      await updateDoc(doc(db, 'orders', cancellingOrder.id), {
-        status: 'cancelled'
-      });
+      await updateDoc(doc(db, 'orders', cancellingOrder.id), { status: 'cancelled' });
       setCancellingOrder(null);
       toast({ title: "Order Cancelled", description: `Order ${cancellingOrder.orderNumber} has been cancelled.` });
     } catch (err) {
@@ -206,8 +254,6 @@ export default function CartPanel({
 
   return (
     <aside className="bg-white border-l flex flex-col h-full shadow-xl relative overflow-hidden">
-      <PrintableReceipt order={lastProcessedOrder} />
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden relative z-10">
         <div className="px-6 pt-6 border-b bg-slate-50 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -291,21 +337,11 @@ export default function CartPanel({
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2 bg-white rounded-lg p-1 border">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-600 hover:bg-slate-50"
-                          onClick={() => onUpdateQuantity(item.id, -1)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:bg-slate-50" onClick={() => onUpdateQuantity(item.id, -1)}>
                           <Minus className="w-3 h-3" />
                         </Button>
                         <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-600 hover:bg-slate-50"
-                          onClick={() => onUpdateQuantity(item.id, 1)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:bg-slate-50" onClick={() => onUpdateQuantity(item.id, 1)}>
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
@@ -331,7 +367,6 @@ export default function CartPanel({
                 <span className="text-orange-600">Rs {total.toFixed(2)}</span>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <Button
                 variant="outline"
@@ -399,6 +434,7 @@ export default function CartPanel({
         </TabsContent>
       </Tabs>
 
+      {/* Payment Modal */}
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl overflow-hidden border-none p-0">
           <DialogHeader className="p-6 bg-slate-900 text-white">
@@ -429,14 +465,12 @@ export default function CartPanel({
             </div>
           </div>
           <DialogFooter className="p-4 bg-slate-50 border-t">
-            <Button variant="ghost" onClick={() => {
-              setIsPaymentModalOpen(false);
-              setChargingOrder(null);
-            }} className="w-full text-slate-500">Cancel</Button>
+            <Button variant="ghost" onClick={() => { setIsPaymentModalOpen(false); setChargingOrder(null); }} className="w-full text-slate-500">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Success Modal */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
           <DialogHeader className="sr-only">
@@ -468,7 +502,7 @@ export default function CartPanel({
               <Button
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20"
                 onClick={() => {
-                  handlePrint();
+                  if (lastProcessedOrder) printReceipt(lastProcessedOrder);
                   closeSuccessModal();
                 }}
               >
@@ -480,13 +514,12 @@ export default function CartPanel({
         </DialogContent>
       </Dialog>
 
+      {/* Cancel Modal */}
       <Dialog open={!!cancellingOrder} onOpenChange={() => setCancellingOrder(null)}>
         <DialogContent className="sm:max-w-md rounded-2xl border-none p-0 overflow-hidden">
           <DialogHeader className="p-6 bg-red-500 text-white">
             <DialogTitle className="text-xl font-bold">Cancel Order?</DialogTitle>
-            <DialogDescription className="text-red-100">
-              This action cannot be undone.
-            </DialogDescription>
+            <DialogDescription className="text-red-100">This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <div className="p-6 bg-white">
             <p className="text-slate-600 mb-2">You are about to cancel:</p>
@@ -498,19 +531,8 @@ export default function CartPanel({
               <p className="font-bold text-orange-600 mt-1">Rs {cancellingOrder?.total?.toFixed(2)}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-12 rounded-xl font-bold"
-                onClick={() => setCancellingOrder(null)}
-              >
-                Keep Order
-              </Button>
-              <Button
-                className="h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
-                onClick={handleCancelOrder}
-              >
-                Yes, Cancel
-              </Button>
+              <Button variant="outline" className="h-12 rounded-xl font-bold" onClick={() => setCancellingOrder(null)}>Keep Order</Button>
+              <Button className="h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold" onClick={handleCancelOrder}>Yes, Cancel</Button>
             </div>
           </div>
         </DialogContent>

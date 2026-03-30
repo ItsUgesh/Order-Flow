@@ -3,25 +3,84 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfDay, startOfWeek, startOfMonth, isAfter } from 'date-fns';
-import PrintableReceipt from '@/components/pos/PrintableReceipt';
 import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 20;
+
+const printReceipt = (order: any) => {
+  const items = order.items?.map((item: any) =>
+    `<tr>
+      <td style="padding:3px 0">${item.name}</td>
+      <td style="text-align:center;padding:3px 0">${item.quantity}</td>
+      <td style="text-align:right;padding:3px 0">Rs ${(item.price * item.quantity).toFixed(2)}</td>
+    </tr>`
+  ).join('') || '';
+
+  const receiptHTML = `<!DOCTYPE html><html><head><title>Receipt</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { width:88mm; font-family:'Courier New',Courier,monospace; font-size:12px; line-height:1.4; color:#000; background:#fff; padding:16px; }
+      @page { size:88mm auto; margin:0; }
+      table { width:100%; border-collapse:collapse; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .row { display:flex; justify-content:space-between; }
+    </style></head><body>
+    <div class="center" style="margin-bottom:16px">
+      <p class="bold" style="font-size:14px;text-transform:uppercase">JP Food And Tandoori</p>
+      <p>Tel: 000-000-0000</p>
+      <p style="border-bottom:1px dashed black;margin-bottom:8px;padding-bottom:8px">================================</p>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="row">
+        <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>Time: ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      <p>Order #: ${order.orderNumber}</p>
+      <p>Type: ${order.type === 'dine_in' ? 'Dine-in' : 'Takeaway'}</p>
+      ${order.tableNumber ? `<p>Table: ${order.tableNumber}</p>` : ''}
+      <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
+    </div>
+    <table style="margin-bottom:12px">
+      <thead><tr style="border-bottom:1px dashed black">
+        <th style="text-align:left;padding-bottom:4px">Item Name</th>
+        <th style="text-align:center;padding-bottom:4px">Qty</th>
+        <th style="text-align:right;padding-bottom:4px">Price</th>
+      </tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div style="border-top:1px dashed black;padding-top:8px;margin-bottom:12px">
+      <div class="row"><span>Subtotal:</span><span>Rs ${(order.subtotal ?? order.total)?.toFixed(2)}</span></div>
+      <div class="row bold"><span>Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
+      <div class="row" style="text-transform:capitalize"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
+      <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
+    </div>
+    <div class="center">
+      <p>Thank you for your visit!</p>
+      <p>Please come again :)</p>
+      <p style="margin-top:8px">================================</p>
+    </div>
+    </body></html>`;
+
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (printWindow) {
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  }
+};
 
 export default function OrderHistoryPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('today');
   const [currentPage, setCurrentPage] = useState(1);
-  const [printOrder, setPrintOrder] = useState<any | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
@@ -32,9 +91,7 @@ export default function OrderHistoryPage() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, dateFilter]);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, dateFilter]);
 
   const filteredOrders = useMemo(() => {
     const now = new Date();
@@ -60,11 +117,6 @@ export default function OrderHistoryPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handlePrint = (order: any) => {
-    setPrintOrder(order);
-    setTimeout(() => window.print(), 100);
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-xs">Paid</Badge>;
@@ -79,7 +131,7 @@ export default function OrderHistoryPage() {
       onClick={() => setDateFilter(value)}
       size="sm"
       className={cn(
-        "rounded-xl font-bold px-3 md:px-6 text-xs md:text-sm",
+        "rounded-xl font-bold px-3 md:px-5 text-xs",
         dateFilter === value
           ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-orange-500/20"
           : "border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
@@ -91,9 +143,6 @@ export default function OrderHistoryPage() {
 
   return (
     <div className="space-y-5">
-      <PrintableReceipt order={printOrder} />
-
-      {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -111,8 +160,6 @@ export default function OrderHistoryPage() {
             </SelectContent>
           </Select>
         </div>
-
-        {/* Date filters */}
         <div className="flex items-center gap-1.5 bg-slate-200/50 p-1.5 rounded-2xl w-full sm:w-fit overflow-x-auto">
           <DateFilterButton value="today" label="Today" />
           <DateFilterButton value="week" label="This Week" />
@@ -123,62 +170,58 @@ export default function OrderHistoryPage() {
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead>Order #</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Order #</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Date & Time</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Type</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Items</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Payment</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Total</th>
+              <th className="text-left p-3 text-slate-500 font-bold text-xs">Status</th>
+              <th className="text-right p-3 text-slate-500 font-bold text-xs">Action</th>
+            </tr>
+          </thead>
+          <tbody>
             {paginatedOrders.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-20 text-slate-400">
-                  No orders found matching criteria.
-                </TableCell>
-              </TableRow>
+              <tr><td colSpan={8} className="text-center py-20 text-slate-400 text-sm">No orders found.</td></tr>
             ) : (
               paginatedOrders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-slate-50 transition-colors">
-                  <TableCell className="font-bold text-slate-900">{order.orderNumber}</TableCell>
-                  <TableCell className="text-slate-500 whitespace-nowrap">
+                <tr key={order.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
+                  <td className="p-3 font-bold text-slate-900">{order.orderNumber}</td>
+                  <td className="p-3 text-slate-500 text-xs whitespace-nowrap">
                     {order.createdAt?.seconds ? format(new Date(order.createdAt.seconds * 1000), 'MMM dd, HH:mm') : 'Recently'}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="p-3">
                     <Badge variant="outline" className="capitalize text-xs">
                       {order.type?.replace('_', ' ')} {order.tableNumber && `(T${order.tableNumber})`}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px]">
+                  </td>
+                  <td className="p-3 max-w-[180px]">
                     <span className="text-xs text-slate-600 line-clamp-1">
                       {order.items?.map((i: any) => `${i.quantity}x ${i.name}`).join(', ')}
                     </span>
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="p-3">
                     {order.paymentMethod ? (
                       <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[10px] font-black tracking-widest">
                         {order.paymentMethod}
                       </Badge>
                     ) : '-'}
-                  </TableCell>
-                  <TableCell className="font-black text-slate-900">Rs {order.total?.toFixed(2)}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handlePrint(order)} className="text-slate-400 hover:text-orange-600">
-                      <Printer className="w-4 h-4" />
+                  </td>
+                  <td className="p-3 font-black text-slate-900">Rs {order.total?.toFixed(2)}</td>
+                  <td className="p-3">{getStatusBadge(order.status)}</td>
+                  <td className="p-3 text-right">
+                    <Button variant="ghost" size="icon" onClick={() => printReceipt(order)} className="text-slate-400 hover:text-orange-600 h-8 w-8">
+                      <Printer className="w-3.5 h-3.5" />
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
 
       {/* Mobile Cards */}
@@ -199,18 +242,16 @@ export default function OrderHistoryPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {getStatusBadge(order.status)}
-                  <Button variant="ghost" size="icon" onClick={() => handlePrint(order)} className="text-slate-400 hover:text-orange-600 h-8 w-8">
+                  <Button variant="ghost" size="icon" onClick={() => printReceipt(order)} className="text-slate-400 hover:text-orange-600 h-8 w-8">
                     <Printer className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
-
               <div className="text-xs text-slate-600 mb-2 line-clamp-2">
                 {order.items?.map((i: any) => `${i.quantity}x ${i.name}`).join(', ')}
               </div>
-
               <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Badge variant="outline" className="capitalize text-[10px]">
                     {order.type?.replace('_', ' ')} {order.tableNumber && `T${order.tableNumber}`}
                   </Badge>
@@ -242,7 +283,7 @@ export default function OrderHistoryPage() {
                 .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
                 .map((p, i, arr) => (
                   <div key={p} className="flex items-center gap-1">
-                    {i > 0 && arr[i - 1] !== p - 1 && <span className="text-slate-300 px-0.5 text-xs">...</span>}
+                    {i > 0 && arr[i - 1] !== p - 1 && <span className="text-slate-300 text-xs">...</span>}
                     <Button
                       variant={currentPage === p ? 'default' : 'ghost'}
                       onClick={() => setCurrentPage(p)}

@@ -64,41 +64,21 @@
 }
 
 @media print {
-  * {
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-  }
-
-  html, body {
-    width: 88mm !important;
-    max-width: 88mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
-
-  #receipt-print-area,
-  #receipt-print-area * {
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
   #receipt-print-area {
-    position: absolute !important;
+    visibility: visible !important;
+    position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 88mm !important;
     max-width: 88mm !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 12px !important;
-    line-height: 1.4 !important;
-    color: #000 !important;
     background: #fff !important;
+    z-index: 9999 !important;
+  }
+  #receipt-print-area * {
+    visibility: visible !important;
   }
 }
+
