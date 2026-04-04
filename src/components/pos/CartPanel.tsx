@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { MenuItem } from './MenuGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Wallet, Banknote, Timer, Printer, AlertCircle, CheckCircle2, Loader2, Pencil, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, getDocs, deleteDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfile } from '@/lib/auth-store';
@@ -107,15 +107,36 @@ export default function CartPanel({
   const [existingTableOrder, setExistingTableOrder] = useState<any | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<any | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [tables, setTables] = useState<any[]>([]);
+  const [isEditingTables, setIsEditingTables] = useState(false);
+  const [isAddingTable, setIsAddingTable] = useState(false);
   const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal;
 
+  // Load held orders
   useEffect(() => {
     const q = query(collection(db, 'orders'), where('status', '==', 'on_hold'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setHeldOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Load tables from Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'tables'), orderBy('number', 'asc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (snapshot.empty) {
+        // Seed default 20 tables if none exist
+        const batch = Array.from({ length: 20 }, (_, i) => i + 1);
+        for (const num of batch) {
+          await addDoc(collection(db, 'tables'), { number: num, createdAt: serverTimestamp() });
+        }
+      } else {
+        setTables(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -128,6 +149,33 @@ export default function CartPanel({
       setExistingTableOrder(null);
     }
   }, [selectedTable, isDineIn, heldOrders]);
+
+  const handleAddTable = async () => {
+    if (isAddingTable) return;
+    setIsAddingTable(true);
+    try {
+      const maxNumber = tables.length > 0 ? Math.max(...tables.map(t => t.number)) : 0;
+      await addDoc(collection(db, 'tables'), {
+        number: maxNumber + 1,
+        createdAt: serverTimestamp()
+      });
+      toast({ title: "Table Added", description: `T${maxNumber + 1} added successfully.` });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add table.", variant: "destructive" });
+    } finally {
+      setIsAddingTable(false);
+    }
+  };
+
+  const handleRemoveTable = async (table: any) => {
+    try {
+      await deleteDoc(doc(db, 'tables', table.id));
+      if (selectedTable === table.number) setSelectedTable(null);
+      toast({ title: "Table Removed", description: `T${table.number} removed.` });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to remove table.", variant: "destructive" });
+    }
+  };
 
   const handleCharge = (order: any = null) => {
     if (order) {
@@ -303,22 +351,54 @@ export default function CartPanel({
 
               {isDineIn && (
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-500 uppercase tracking-wider font-bold">Select Table</Label>
-                  <div className="max-h-[120px] overflow-y-auto p-1 border rounded-xl bg-slate-50">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-slate-500 uppercase tracking-wider font-bold">Select Table</Label>
+                    <button
+                      onClick={() => setIsEditingTables(prev => !prev)}
+                      className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg transition-all ${
+                        isEditingTables
+                          ? 'bg-orange-100 text-orange-600'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      {isEditingTables ? 'Done' : 'Edit'}
+                    </button>
+                  </div>
+                  <div className="max-h-[140px] overflow-y-auto p-1 border rounded-xl bg-slate-50">
                     <div className="grid grid-cols-5 gap-2">
-                      {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
-                        <button
-                          key={num}
-                          onClick={() => setSelectedTable(num)}
-                          className={`h-9 text-xs font-bold rounded-lg border transition-all ${
-                            selectedTable === num
-                              ? 'bg-orange-500 border-orange-500 text-white shadow-md'
-                              : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
-                          }`}
-                        >
-                          T{num}
-                        </button>
+                      {tables.map(table => (
+                        <div key={table.id} className="relative">
+                          <button
+                            onClick={() => !isEditingTables && setSelectedTable(table.number)}
+                            className={`w-full h-9 text-xs font-bold rounded-lg border transition-all ${
+                              selectedTable === table.number && !isEditingTables
+                                ? 'bg-orange-500 border-orange-500 text-white shadow-md'
+                                : isEditingTables
+                                ? 'bg-white border-red-200 text-slate-400 cursor-default'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                            }`}
+                          >
+                            T{table.number}
+                          </button>
+                          {isEditingTables && (
+                            <button
+                              onClick={() => handleRemoveTable(table)}
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
                       ))}
+                      {/* Add table button */}
+                      <button
+                        onClick={handleAddTable}
+                        disabled={isAddingTable}
+                        className="h-9 text-xs font-bold rounded-lg border border-dashed border-orange-300 bg-white text-orange-500 hover:bg-orange-50 hover:border-orange-500 transition-all flex items-center justify-center"
+                      >
+                        {isAddingTable ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -442,9 +522,7 @@ export default function CartPanel({
       </Tabs>
 
       {/* Payment Modal */}
-      <Dialog open={isPaymentModalOpen} onOpenChange={(open) => {
-        if (!isProcessing) setIsPaymentModalOpen(open);
-      }}>
+      <Dialog open={isPaymentModalOpen} onOpenChange={(open) => { if (!isProcessing) setIsPaymentModalOpen(open); }}>
         <DialogContent className="sm:max-w-md rounded-2xl overflow-hidden border-none p-0">
           <DialogHeader className="p-6 bg-slate-900 text-white">
             <DialogTitle className="text-2xl font-bold">Checkout</DialogTitle>
@@ -485,14 +563,7 @@ export default function CartPanel({
             )}
           </div>
           <DialogFooter className="p-4 bg-slate-50 border-t">
-            <Button
-              variant="ghost"
-              onClick={() => { setIsPaymentModalOpen(false); setChargingOrder(null); }}
-              disabled={isProcessing}
-              className="w-full text-slate-500"
-            >
-              Cancel
-            </Button>
+            <Button variant="ghost" onClick={() => { setIsPaymentModalOpen(false); setChargingOrder(null); }} disabled={isProcessing} className="w-full text-slate-500">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -519,19 +590,10 @@ export default function CartPanel({
               <h3 className="text-4xl font-black text-orange-600">Rs {lastProcessedOrder?.total.toFixed(2)}</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-14 rounded-xl border-slate-200 font-bold text-slate-600"
-                onClick={closeSuccessModal}
-              >
-                Done
-              </Button>
+              <Button variant="outline" className="h-14 rounded-xl border-slate-200 font-bold text-slate-600" onClick={closeSuccessModal}>Done</Button>
               <Button
                 className="h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20"
-                onClick={() => {
-                  if (lastProcessedOrder) printReceipt(lastProcessedOrder);
-                  closeSuccessModal();
-                }}
+                onClick={() => { if (lastProcessedOrder) printReceipt(lastProcessedOrder); closeSuccessModal(); }}
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Receipt
