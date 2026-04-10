@@ -85,7 +85,7 @@ export default function DashboardPage() {
 
       <div>
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Dashboard Overview</h1>
-        <p className="text-slate-500 text-sm">Welcome back, manager. Here is your daily summary.</p>
+        <p className="text-slate-500 text-sm">Welcome back. Here is your daily summary.</p>
       </div>
 
       {/* Stat Cards — 2 col on mobile, 4 on desktop */}

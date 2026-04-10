@@ -122,7 +122,7 @@ export default function AdminSidebar() {
             <div className="p-2 bg-orange-500 rounded-xl">
               <Coffee className="w-6 h-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Cafe Compass</span>
+            <span className="text-xl font-bold tracking-tight">JP FOODS</span>
           </div>
           <button onClick={() => setIsOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-white">
             <X className="w-5 h-5" />

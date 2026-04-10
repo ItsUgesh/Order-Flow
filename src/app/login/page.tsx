@@ -24,57 +24,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Auto-seed check for first launch
-      if (email === 'admin@cafe.com' && password === 'admin123') {
-        try {
-          await signInWithEmailAndPassword(auth, email, password);
-        } catch (err: any) {
-          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-              uid: userCredential.user.uid,
-              name: 'Master Admin',
-              email: 'admin@cafe.com',
-              role: 'admin',
-              createdAt: serverTimestamp(),
-            });
-
-            // Seed Categories
-            const categoriesRef = collection(db, 'categories');
-            const catSnap = await getDocs(categoriesRef);
-            if (catSnap.empty) {
-              const defaultCats = ['Beverages', 'Bakery', 'Food', 'Desserts', 'Snacks', 'Breakfast', 'Lunch', 'Dinner'];
-              for (const cat of defaultCats) {
-                await addDoc(categoriesRef, { name: cat, createdAt: serverTimestamp() });
-              }
-            }
-
-            // Also seed some initial menu items
-            const initialMenu = [
-              { name: 'Espresso', category: 'Beverages', price: 300, available: true },
-              { name: 'Cappuccino', category: 'Beverages', price: 450, available: true },
-              { name: 'Latte', category: 'Beverages', price: 400, available: true },
-              { name: 'Americano', category: 'Beverages', price: 350, available: true },
-              { name: 'Croissant', category: 'Bakery', price: 300, available: true },
-              { name: 'Chocolate Muffin', category: 'Bakery', price: 250, available: true },
-              { name: 'Club Sandwich', category: 'Food', price: 700, available: true },
-              { name: 'Caesar Salad', category: 'Food', price: 650, available: true },
-              { name: 'Pasta Arrabiata', category: 'Food', price: 800, available: true },
-              { name: 'Cheesecake', category: 'Desserts', price: 500, available: true },
-            ];
-            for (const item of initialMenu) {
-              const menuRef = doc(db, 'menuItems', item.name.toLowerCase().replace(/\s+/g, '-'));
-              const snap = await getDoc(menuRef);
-              if (!snap.exists()) {
-                await setDoc(menuRef, { ...item, createdAt: serverTimestamp() });
-              }
-            }
-          } else {
-            throw err;
-          }
-        }
-      }
-
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       
@@ -132,7 +81,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="admin@cafe.com" 
+                placeholder="Your email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required 
