@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="#1a1a1a"/>
+  
+  <!-- Steam wisps -->
+  <path d="M20 22 Q17 15 20 8" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 24 Q29 16 32 8" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  <path d="M44 22 Q41 15 44 8" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Bowl -->
+  <ellipse cx="32" cy="38" rx="18" ry="5" fill="#f97316"/>
+  <path d="M14 38 Q14 52 32 54 Q50 52 50 38Z" fill="#ea580c"/>
+  
+  <!-- JP text -->
+  <text x="32" y="35" font-family="serif" font-size="13" font-weight="700" fill="white" text-anchor="middle">JP</text>
+</svg>

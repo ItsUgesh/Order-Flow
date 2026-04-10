@@ -29,10 +29,8 @@ export default function POSHeader({ profile }: { profile: UserProfile | null }) 
       <div className="h-14 px-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-orange-500 rounded-lg text-white">
-            <Coffee className="w-4 h-4" />
-          </div>
-          <h1 className="text-lg font-bold text-slate-900">Cafe Compass</h1>
+         <img src="/favicon.svg" alt="JP Foods Logo" className="w-10 h-10" />
+          <h1 className="text-lg font-bold text-slate-900">JP Foods and Bhansha Ghar</h1>
         </div>
 
         {/* Right side — user + logout */}
