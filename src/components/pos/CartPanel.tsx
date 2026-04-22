@@ -40,7 +40,7 @@ const printReceipt = (order: any) => {
     </style></head><body>
     <div class="center" style="margin-bottom:16px">
       <p class="bold" style="font-size:14px;text-transform:uppercase">JP Food And Tandoori</p>
-      <p>Tel: 000-000-0000</p>
+      <p>Tel: 15927873</p>
       <p style="border-bottom:1px dashed black;margin-bottom:8px;padding-bottom:8px">================================</p>
     </div>
     <div style="margin-bottom:12px">

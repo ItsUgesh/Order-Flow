@@ -33,7 +33,7 @@ const printReceipt = (order: any) => {
     </style></head><body>
     <div class="center" style="margin-bottom:16px">
       <p class="bold" style="font-size:14px;text-transform:uppercase">JP Food And Tandoori</p>
-      <p>Tel: 000-000-0000</p>
+      <p>Tel: 15927873</p>
       <p style="border-bottom:1px dashed black;margin-bottom:8px;padding-bottom:8px">================================</p>
     </div>
     <div style="margin-bottom:12px">
@@ -55,9 +55,10 @@ const printReceipt = (order: any) => {
       <tbody>${items}</tbody>
     </table>
     <div style="border-top:1px dashed black;padding-top:8px;margin-bottom:12px">
-      <div class="row"><span>Subtotal:</span><span>Rs ${(order.subtotal ?? order.total)?.toFixed(2)}</span></div>
-      <div class="row bold"><span>Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
-      <div class="row" style="text-transform:capitalize"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
+    <div class="row"><span>Subtotal:</span><span>Rs ${(order.subtotal ?? order.total)?.toFixed(2)}</span></div>
+    ${order.discountPercent > 0 ? `<div class="row"><span>Discount (${order.discountPercent}%):</span><span>- Rs ${order.discountAmount?.toFixed(2)}</span></div>` : ''}
+    <div class="row bold" style="margin-top:4px"><span>Net Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
+    <div class="row" style="text-transform:capitalize;margin-top:4px"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
       <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
     </div>
     <div class="center">

@@ -27,7 +27,7 @@ export default function PrintableReceipt({ order }: ReceiptProps) {
         <>
           <div style={{ textAlign: 'center', marginBottom: '16px' }}>
             <p style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>JP Food And Tandoori</p>
-            <p>Tel: 000-000-0000</p>
+            <p>Tel: 15927873</p>
             <p style={{ borderBottom: '1px dashed black', marginBottom: '8px', paddingBottom: '8px' }}>
               ================================
             </p>
