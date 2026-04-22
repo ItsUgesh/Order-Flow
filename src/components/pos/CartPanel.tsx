@@ -63,8 +63,9 @@ const printReceipt = (order: any) => {
     </table>
     <div style="border-top:1px dashed black;padding-top:8px;margin-bottom:12px">
       <div class="row"><span>Subtotal:</span><span>Rs ${(order.subtotal ?? order.total)?.toFixed(2)}</span></div>
-      <div class="row bold"><span>Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
-      <div class="row" style="text-transform:capitalize"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
+      ${order.discountPercent > 0 ? `<div class="row"><span>Discount (${order.discountPercent}%):</span><span>- Rs ${order.discountAmount?.toFixed(2)}</span></div>` : ''}
+      <div class="row bold" style="margin-top:4px"><span>Net Total:</span><span>Rs ${order.total?.toFixed(2)}</span></div>
+      <div class="row" style="text-transform:capitalize;margin-top:4px"><span>Payment:</span><span>${order.paymentMethod || 'N/A'}</span></div>
       <p style="border-bottom:1px dashed black;margin:8px 0">--------------------------------</p>
     </div>
     <div class="center">
@@ -110,10 +111,12 @@ export default function CartPanel({
   const [tables, setTables] = useState<any[]>([]);
   const [isEditingTables, setIsEditingTables] = useState(false);
   const [isAddingTable, setIsAddingTable] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
   const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = subtotal;
+  const discountAmount = (subtotal * discountPercent) / 100;
+  const total = subtotal - discountAmount;
 
   // Load held orders
   useEffect(() => {
@@ -129,7 +132,6 @@ export default function CartPanel({
     const q = query(collection(db, 'tables'), orderBy('number', 'asc'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
-        // Seed default 20 tables if none exist
         const batch = Array.from({ length: 20 }, (_, i) => i + 1);
         for (const num of batch) {
           await addDoc(collection(db, 'tables'), { number: num, createdAt: serverTimestamp() });
@@ -225,10 +227,15 @@ export default function CartPanel({
             });
           }
         });
-        const newTotal = mergedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        const newSubtotal = mergedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        const newDiscountAmount = (newSubtotal * discountPercent) / 100;
+        const newTotal = newSubtotal - newDiscountAmount;
         finalOrderData = {
           ...existingTableOrder,
           items: mergedItems,
+          subtotal: newSubtotal,
+          discountPercent,
+          discountAmount: newDiscountAmount,
           total: newTotal,
           status,
           paymentMethod: method,
@@ -237,6 +244,9 @@ export default function CartPanel({
         };
         await updateDoc(doc(db, 'orders', existingTableOrder.id), {
           items: mergedItems,
+          subtotal: newSubtotal,
+          discountPercent,
+          discountAmount: newDiscountAmount,
           total: newTotal,
           status,
           paymentMethod: method,
@@ -255,6 +265,8 @@ export default function CartPanel({
             price: item.price
           })),
           subtotal,
+          discountPercent,
+          discountAmount,
           total,
           status,
           paymentMethod: method,
@@ -278,6 +290,7 @@ export default function CartPanel({
         onClearCart();
         setSelectedTable(null);
         setExistingTableOrder(null);
+        setDiscountPercent(0);
       }
       setIsPaymentModalOpen(false);
       setChargingOrder(null);
@@ -391,7 +404,6 @@ export default function CartPanel({
                           )}
                         </div>
                       ))}
-                      {/* Add table button */}
                       <button
                         onClick={handleAddTable}
                         disabled={isAddingTable}
@@ -446,9 +458,37 @@ export default function CartPanel({
                 <span>Subtotal</span>
                 <span>Rs {subtotal.toFixed(2)}</span>
               </div>
+
+              {/* Discount input */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-slate-500 text-sm">Discount</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discountPercent === 0 ? '' : discountPercent}
+                    onChange={(e) => {
+                      const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                      setDiscountPercent(val);
+                    }}
+                    placeholder="0"
+                    className="w-16 text-right border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-400 bg-white"
+                  />
+                  <span className="text-slate-400 text-sm font-bold">%</span>
+                </div>
+              </div>
+
+              {discountPercent > 0 && (
+                <div className="flex justify-between text-red-500 text-sm font-medium">
+                  <span>Discount ({discountPercent}%)</span>
+                  <span>- Rs {discountAmount.toFixed(2)}</span>
+                </div>
+              )}
+
               <Separator />
               <div className="flex justify-between items-center text-xl font-bold text-slate-900">
-                <span>Total</span>
+                <span>Net Total</span>
                 <span className="text-orange-600">Rs {total.toFixed(2)}</span>
               </div>
             </div>
@@ -529,9 +569,15 @@ export default function CartPanel({
           </DialogHeader>
           <div className="p-10 text-center bg-white">
             <p className="text-slate-500 mb-2 font-medium">Payable Amount</p>
-            <h3 className="text-5xl font-black text-slate-900 mb-8">
+            <h3 className="text-5xl font-black text-slate-900 mb-2">
               Rs {(chargingOrder ? chargingOrder.total : total).toFixed(2)}
             </h3>
+            {!chargingOrder && discountPercent > 0 && (
+              <p className="text-sm text-red-500 font-medium mb-6">
+                Includes {discountPercent}% discount (- Rs {discountAmount.toFixed(2)})
+              </p>
+            )}
+            {(chargingOrder || discountPercent === 0) && <div className="mb-6" />}
             {isProcessing ? (
               <div className="flex flex-col items-center gap-4 py-4">
                 <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
@@ -586,7 +632,19 @@ export default function CartPanel({
               Order <span className="text-slate-900 font-bold">#{lastProcessedOrder?.orderNumber}</span> has been processed successfully.
             </p>
             <div className="bg-slate-50 rounded-2xl p-6 mb-8">
-              <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Total Amount</p>
+              {lastProcessedOrder?.discountPercent > 0 && (
+                <div className="flex justify-between text-sm text-slate-500 mb-1">
+                  <span>Subtotal</span>
+                  <span>Rs {lastProcessedOrder?.subtotal?.toFixed(2)}</span>
+                </div>
+              )}
+              {lastProcessedOrder?.discountPercent > 0 && (
+                <div className="flex justify-between text-sm text-red-500 mb-2">
+                  <span>Discount ({lastProcessedOrder?.discountPercent}%)</span>
+                  <span>- Rs {lastProcessedOrder?.discountAmount?.toFixed(2)}</span>
+                </div>
+              )}
+              <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Net Total</p>
               <h3 className="text-4xl font-black text-orange-600">Rs {lastProcessedOrder?.total.toFixed(2)}</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
