@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'JP Foods | Restaurant Management System',
+  title: 'Order Flow | Restaurant Management System',
   description: 'A professional and modern POS for your cafe.',
 };
 

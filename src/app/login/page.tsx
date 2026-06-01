@@ -68,10 +68,10 @@ export default function LoginPage() {
         <CardHeader className="text-center space-y-1">
           <div className="flex justify-center mb-4">
             <div className="p-4 bg-orange-500 rounded-full text-white shadow-lg shadow-orange-500/20">
-              <img src="/favicon.svg" alt="JP Foods Logo" className="w-10 h-10" />
+              <img src="/favicon.svg" alt="Order Flow Logo" className="w-10 h-10" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">JP Foods and Bhansha Ghar</CardTitle>
+          <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">Order Flow</CardTitle>
           <CardDescription className="text-slate-500">Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent className="pb-8">
