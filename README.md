@@ -1,7 +1,6 @@
-<<<<<<< HEAD
-# Cafe Compass — Restaurant Management System
+# OrderFlow — Restaurant Management System
 
-A full-featured Restaurant Management System (RMS) built for cafe operations. Manages orders, menu, staff, and daily sales reporting with a built-in POS terminal.
+A full-featured Restaurant Management System (RMS) built for cafe and restaurant operations. Manages orders, menu, staff, and daily sales reporting with a built-in POS terminal.
 
 ---
 
@@ -36,7 +35,7 @@ A full-featured Restaurant Management System (RMS) built for cafe operations. Ma
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 15 (App Router) |
 | Database | Firebase Firestore |
 | Authentication | Firebase Auth |
 | Styling | Tailwind CSS + shadcn/ui |
@@ -51,8 +50,8 @@ A full-featured Restaurant Management System (RMS) built for cafe operations. Ma
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/cafe-compass.git
-cd cafe-compass
+git clone https://github.com/ItsUgesh/Order-Flow.git
+cd Order-Flow
 ```
 
 ### 2. Install dependencies
@@ -62,7 +61,7 @@ npm install
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the root directory and add your Firebase config:
+Create a `.env.local` file in the root directory:
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
@@ -78,18 +77,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### 5. First login
-
-On first launch the app auto-creates an admin account and seeds the menu. Log in with:
+### 5. Demo credentials
 
 ```
-Email:    admin@cafe.com
+Email:    admin@orderflow.com
 Password: admin123
 ```
-
-> **Important:** Change the admin password after your first login.
 
 ---
 
@@ -117,19 +110,10 @@ orders/{id}
 
 ## Deployment
 
-This app is deployed on **Vercel** with **Firebase** as the backend.
-
-To deploy your own instance:
-1. Push this repo to GitHub (private)
-2. Connect the repo to [Vercel](https://vercel.com)
-3. Add your Firebase environment variables in Vercel project settings
-4. Deploy
+Deployed on **Vercel** with **Firebase** as the backend.
 
 ---
 
 ## License
 
 Private project — all rights reserved.
-=======
-# Order-Flow
->>>>>>> 11aee5b97e88130e3705c3b536953587c1690160
