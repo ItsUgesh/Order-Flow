@@ -8,7 +8,7 @@ A full-featured Restaurant Management System (RMS) built for cafe and restaurant
 
 ### POS Terminal
 - Take dine-in and takeaway orders
-- Assign table numbers (1–20) for dine-in orders
+- Assign table numbers (1–unlimited) for dine-in orders
 - Hold orders and resume them later
 - Merge new items into existing on-hold orders by table number
 - Charge orders via Cash or Online payment
@@ -116,4 +116,4 @@ Deployed on **Vercel** with **Firebase** as the backend.
 
 ## License
 
-Private project — all rights reserved.
+Private project — all rights reserved.yeah
