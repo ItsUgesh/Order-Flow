@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Cafe Compass — Restaurant Management System
 
 A full-featured Restaurant Management System (RMS) built for cafe operations. Manages orders, menu, staff, and daily sales reporting with a built-in POS terminal.
@@ -129,3 +130,6 @@ To deploy your own instance:
 ## License
 
 Private project — all rights reserved.
+=======
+# Order-Flow
+>>>>>>> 11aee5b97e88130e3705c3b536953587c1690160
