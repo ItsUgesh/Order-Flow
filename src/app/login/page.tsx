@@ -26,7 +26,7 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         if (userData.inactive) {
@@ -78,35 +78,48 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="Your email" 
+              <Input
+                id="email"
+                type="email"
+                placeholder="Your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required 
+                required
                 className="rounded-xl border-slate-200"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" title="Try admin123" className="text-slate-700">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
+              <Input
+                id="password"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required 
+                required
                 className="rounded-xl border-slate-200"
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-6 rounded-xl transition-all mt-4"
               disabled={isLoading}
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>
           </form>
+         <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-center text-slate-600">
+  <p className="text-slate-500 mb-2 text-xs">This is a demo site. Feel free to explore!</p>
+  <div className="space-y-1">
+    <p className="text-xs text-slate-400 font-semibold">Admin</p>
+    <p>Email: <span className="font-mono font-medium">admin@orderflow.com</span></p>
+    <p>Password: <span className="font-mono font-medium">admin123</span></p>
+  </div>
+  <div className="space-y-1 mt-2 pt-2 border-t border-orange-200">
+    <p className="text-xs text-slate-400 font-semibold">Staff</p>
+    <p>Email: <span className="font-mono font-medium">staff@orderflow.com</span></p>
+    <p>Password: <span className="font-mono font-medium">staff123</span></p>
+  </div>
+</div>
         </CardContent>
       </Card>
     </div>

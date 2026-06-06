@@ -71,7 +71,7 @@ export default function SalesReportPage() {
 
       doc.setFontSize(22);
       doc.setTextColor(249, 115, 22);
-      doc.text('JP Food and Tandoori', pageWidth / 2, 20, { align: 'center' });
+      doc.text('Order Flow', pageWidth / 2, 20, { align: 'center' });
       doc.setFontSize(16);
       doc.setTextColor(100);
       doc.text('Daily Sales Report', pageWidth / 2, 30, { align: 'center' });
