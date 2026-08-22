@@ -122,7 +122,7 @@ export default function AdminSidebar() {
             <div className="p-2 bg-orange-500 rounded-xl">
               <img src="/favicon.svg" alt="Order Flow Logo" className="w-10 h-10" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Order Flow</span>
+            <span className="text-xl font-bold tracking-tight">Order Flow Management</span>
           </div>
           <button onClick={() => setIsOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
